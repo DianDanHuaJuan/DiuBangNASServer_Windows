@@ -335,14 +335,42 @@ class _DeviceManagementPageState extends State<DeviceManagementPage>
                         color: AppTheme.lightCardForeground,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      device.deviceName,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.lightSecondaryText,
-                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isOnline
+                                ? AppTheme.successColor
+                                : AppTheme.lightLabel,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isOnline ? '在线' : '离线',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isOnline
+                                ? AppTheme.successColor
+                                : AppTheme.lightLabel,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
+                    if (displayName != device.deviceName) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        device.deviceName,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.lightSecondaryText,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

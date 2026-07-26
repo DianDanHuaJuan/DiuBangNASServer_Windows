@@ -5,6 +5,7 @@
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import '../../../core/auth/auth_headers.dart';
+import '../../../core/storage/ffmpeg_duration_probe.dart';
 import '../../webdav/resolvers/dav_resource_resolver.dart';
 import '../../webdav/utils/content_type_resolver.dart';
 
@@ -151,7 +152,7 @@ class PreviewHandler {
               queryParameters: {'path': pathParam, 'type': 'grid'},
             )
           : null;
-      final response = {
+      final response = <String, dynamic>{
         'kind': kind,
         'strategy': strategy,
         'url': _resolvePreviewUrl(
@@ -174,6 +175,15 @@ class PreviewHandler {
             : null,
         'expiresAt': null,
       };
+
+      // HLS EVENT playlists only expose encoded segments so far; give clients
+      // the real source duration for scrubber UI.
+      if (strategy == 'hls' && resource.sourceRef != null) {
+        final durationMs = await probeDurationMs(resource.sourceRef!);
+        if (durationMs != null) {
+          response['durationMs'] = durationMs;
+        }
+      }
 
       return Response.ok(
         jsonEncode(response),
