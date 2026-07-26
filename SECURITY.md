@@ -53,7 +53,7 @@ Windows builds bundle `libmpv-2.dll` via [media-kit/libmpv-win32-video-build](ht
 
 ### FFmpeg (installer bundle)
 
-Windows installer packaging bundles `ffmpeg.exe` from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) (`win64-lgpl` static build, 8.1 release branch). The file is placed under `assets/` during bootstrap (not committed to Git).
+Windows installer packaging bundles `ffmpeg.exe` from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) (`latest` / `win64-lgpl` static build on the 8.1 release branch). The file is placed under `assets/` during bootstrap (not committed to Git).
 
 - FFmpeg is invoked as a **separate subprocess** for HLS transcoding and video thumbnails; it is not linked into the MIT-licensed application source.
 - The bundled build excludes GPL-only components (e.g. libx264). H.264 encoding uses `h264_mf` or `libopenh264`.

@@ -49,7 +49,7 @@ void main() {
     });
 
     test(
-      'blocks remote session creation while owner still uses default credentials',
+      'allows remote session creation with default owner credentials',
       () async {
         final harness = await TestDeviceStoreHarness.create();
         addTearDown(harness.dispose);
@@ -77,8 +77,9 @@ void main() {
         final body =
             jsonDecode(await response.readAsString()) as Map<String, dynamic>;
 
-        expect(response.statusCode, 403);
-        expect(body['code'], 'DEFAULT_OWNER_CHANGE_REQUIRED');
+        expect(response.statusCode, 200);
+        expect(body['role'], AccountRole.owner.name);
+        expect(body['accessToken'], isNotEmpty);
       },
     );
 

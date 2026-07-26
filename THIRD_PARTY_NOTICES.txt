@@ -7,8 +7,9 @@ The distributed Windows installer may bundle separately licensed components list
 FFmpeg (LGPL v2.1+)
 -------------------
 - Component: ffmpeg.exe (bundled subprocess for HLS transcoding and video thumbnails)
-- Source: BtbN/FFmpeg-Builds win64-lgpl static build (8.1 release branch)
-  https://github.com/BtbN/FFmpeg-Builds
+- Source: BtbN/FFmpeg-Builds win64-lgpl static build (8.1 release branch, floating "latest" asset)
+  https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest
+  Asset: ffmpeg-n8.1-latest-win64-lgpl-8.1.zip
 - License: GNU Lesser General Public License v2.1 or later
   https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 - FFmpeg project: https://ffmpeg.org/

@@ -117,7 +117,7 @@ if (-not (Test-Path -LiteralPath $ffmpegSource)) {
     throw @"
 缺少 assets\ffmpeg.exe。自动引导失败，请手动运行：
   .\tool\bootstrap_windows.ps1
-或从 https://github.com/BtbN/FFmpeg-Builds/releases 下载 ffmpeg-n8.1.2-win64-lgpl-8.1.zip（lgpl 变体，非 gpl），
+或从 https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest 下载 ffmpeg-n8.1-latest-win64-lgpl-8.1.zip（lgpl 变体，非 gpl），
 解压后将 bin\ffmpeg.exe 复制到 assets\ffmpeg.exe。
 视频预览、HLS 与缩略图依赖此文件。
 "@

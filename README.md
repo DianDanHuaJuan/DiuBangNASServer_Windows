@@ -46,7 +46,7 @@
    ```
 
    - **media_kit**：libmpv + ANGLE，带 MD5 校验；网络不稳定时避免 `Integrity check failed`
-   - **FFmpeg**：[BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) **win64-lgpl** 静态构建（8.1 分支），仅提取 `assets\ffmpeg.exe`；
+   - **FFmpeg**：[BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) **`latest` / win64-lgpl** 静态构建（8.1 分支），仅提取 `assets\ffmpeg.exe`；
 
    单独修复某一依赖：
 
@@ -88,9 +88,9 @@
 
 | 现象 | 处理 |
 |------|------|
-| Bootstrap 失败 | 查看脚本末尾「Bootstrap FAILED」清单，按依赖名修复；重试 `.\tool\bootstrap_windows.ps1 [-Force]` |
+| Bootstrap 失败 | 查看脚本末尾「Bootstrap FAILED」清单，按依赖名修复；重试 `.\tool\bootstrap_windows.ps1 [-Force]`；或在 `tool\bootstrap\bootstrap.properties` 设 `localProxyEnabled=true` / 调整 `githubMirrorPrefix` |
 | `Integrity check failed`（media_kit） | `.\tool\bootstrap_windows.ps1 -Only media_kit -Force`；必要时 `flutter clean` 后删除 `build\windows\x64\` 下 `*.7z`、`libmpv\`、`ANGLE\` |
-| FFmpeg 下载失败 | `.\tool\bootstrap_windows.ps1 -Only ffmpeg -Force`；或从 [BtbN Releases](https://github.com/BtbN/FFmpeg-Builds/releases) 下载 `ffmpeg-n8.1.2-win64-lgpl-8.1.zip`（**lgpl**，非 gpl） |
+| FFmpeg / media_kit 下载失败 | 同上开启本机代理或镜像后 `-Force`；或从 [BtbN latest](https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest) 手动下载 `ffmpeg-n8.1-latest-win64-lgpl-8.1.zip`（**lgpl**，非 gpl） |
 | 缺少 `assets\ffmpeg.exe` | `.\tool\bootstrap_windows.ps1 -Only ffmpeg` |
 
 更多细节见 [packaging/windows/README.md](packaging/windows/README.md)。

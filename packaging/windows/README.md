@@ -6,7 +6,7 @@
 - Flutter 3.38+、`flutter doctor -v` 无 Windows/VS 红叉
 - Visual Studio 2022（「使用 C++ 的桌面开发」）
 - [Inno Setup 6](https://jrsoftware.org/isinfo.php)（生成 `.exe` 安装包时需要）
-- 能稳定访问 **github.com**（bootstrap 下载 media_kit / FFmpeg）
+- 能访问 **github.com**，或在 `tool\bootstrap\bootstrap.properties` 配置本机代理 / GitHub 镜像（bootstrap 下载 media_kit / FFmpeg）
 - 建议安装 [7-Zip](https://www.7-zip.org/)（CMake 解压 `.7z` 时使用）
 
 ## Windows 构建依赖（统一 bootstrap）
@@ -20,11 +20,25 @@
 | 依赖 | 说明 |
 |------|------|
 | **media_kit** | libmpv + ANGLE → `build/windows/x64/`，固定 MD5；避免 `Integrity check failed` |
-| **FFmpeg LGPL** | [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) `win64-lgpl` 静态构建 → `assets/ffmpeg.exe`（HLS 编码：`h264_mf` / `libopenh264`） |
+| **FFmpeg LGPL** | [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) `latest` 标签下 `ffmpeg-n8.1-latest-win64-lgpl-8.1.zip` → `assets/ffmpeg.exe`（HLS：`h264_mf` / `libopenh264`；SHA256 来自同目录 `checksums.sha256`） |
 
 安装包构建时会将根目录 [`THIRD_PARTY_NOTICES.txt`](../../THIRD_PARTY_NOTICES.txt) 复制到 Release 目录，供 LGPL 等第三方许可声明。
 
 特性：有限次重试（默认 3）、下载中断或 MD5/校验失败自动删文件重下、全部重试用尽后输出**具体失败依赖清单**。
+
+### 本机 HTTP 代理一键开关
+
+GitHub release 下载失败或极慢时，编辑 [`tool/bootstrap/bootstrap.properties`](../../tool/bootstrap/bootstrap.properties)：
+
+```properties
+localProxyEnabled=true
+localProxyHost=127.0.0.1
+localProxyPort=7890
+```
+
+- `localProxyEnabled=true`：经 Clash / V2RayN 等本机 **HTTP 或 mixed** 端口直连 `github.com`（忽略下方镜像前缀）。日志会出现 `[localProxy] enabled host:port`。
+- `localProxyEnabled=false`：优先用 `githubMirrorPrefix`（默认 `https://ghproxy.net/`），失败再回退直连。
+- TUN 模式 VPN 可替代该开关。
 
 单独修复：
 

@@ -34,21 +34,6 @@ class AuthSessionHandler {
       }
 
       final (username, password) = credentials;
-      final isDefaultOwnerRemoteSignInBlocked =
-          await _ownerCredentialStore.isUsingDefaultOwnerCredential() &&
-          await _ownerCredentialStore.verifyOwnerCredential(
-            username: username,
-            password: password,
-          );
-      if (isDefaultOwnerRemoteSignInBlocked) {
-        return _buildBasicAuthErrorResponse(
-          code: 'DEFAULT_OWNER_CHANGE_REQUIRED',
-          message:
-              'Change the default owner credentials on the server before allowing remote sign-in',
-          statusCode: 403,
-        );
-      }
-
       final authentication = await _ownerCredentialStore.authenticate(
         username: username,
         password: password,

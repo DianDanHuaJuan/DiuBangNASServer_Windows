@@ -85,7 +85,9 @@ function Ensure-MediaKitDependency {
             -ExpectedMd5 $archive.Md5 `
             -MinSizeBytes 1024 `
             -TimeoutSec 600 `
-            -Force:$force
+            -Force:$force `
+            -LocalProxy $Context.LocalProxy `
+            -MirrorPrefix $Context.MirrorPrefix
 
         if (-not $result.Success) {
             $failures.Add((New-BootstrapFailure `
@@ -96,6 +98,7 @@ function Ensure-MediaKitDependency {
                 -ManualHint @"
 检查 github.com 访问；安装 7-Zip (https://www.7-zip.org/)；
 flutter clean 后删除 build\windows\x64\ 下 *.7z、libmpv\、ANGLE\ 再重试。
+或在 tool\bootstrap\bootstrap.properties 设 localProxyEnabled=true / 调整 githubMirrorPrefix。
 "@))
         }
     }

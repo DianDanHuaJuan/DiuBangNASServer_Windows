@@ -8,6 +8,10 @@
   Downloads with limited retries, deletes corrupt partial files, and reports
   which dependency failed when retries are exhausted.
 
+  Network: tool/bootstrap/bootstrap.properties
+    localProxyEnabled / localProxyHost / localProxyPort — Clash HTTP/mixed proxy
+    githubMirrorPrefix — used when local proxy is off (ignored when proxy is on)
+
   To add a dependency: register in tool/bootstrap/_Dependencies.ps1 and add
   tool/bootstrap/deps/<id>.ps1 exporting Ensure-<Id>Dependency.
 
@@ -54,14 +58,28 @@ $resolvedRepoRoot = Resolve-RepoRoot -RepoRoot $RepoRoot -ScriptRoot $bootstrapD
 $depsRoot = Join-Path $bootstrapDir 'bootstrap\deps'
 $dependencies = Get-BootstrapDependencies -Only $Only
 
+$propsPath = Get-BootstrapPropertiesPath -BootstrapDir (Join-Path $bootstrapDir 'bootstrap')
+$props = Get-BootstrapPropertyMap -PropertiesPath $propsPath
+$localProxy = Get-LocalProxyConfig -PropertyMap $props
+$mirrorPrefix = Get-GithubMirrorPrefix -PropertyMap $props
+
 $context = @{
     RepoRoot = $resolvedRepoRoot
     MaxAttempts = $MaxAttempts
     Force = [bool]$Force
+    LocalProxy = $localProxy
+    MirrorPrefix = $mirrorPrefix
 }
 
 Write-Host "Windows bootstrap starting (repo: $resolvedRepoRoot)"
 Write-Host "Dependencies: $($dependencies.Id -join ', ')"
+if ($localProxy.Enabled) {
+    Write-Host "[localProxy] enabled $($localProxy.Host):$($localProxy.Port)"
+} elseif (-not [string]::IsNullOrWhiteSpace($mirrorPrefix)) {
+    Write-Host "[githubMirror] $mirrorPrefix"
+} else {
+    Write-Host '[network] direct github.com (no local proxy / mirror prefix)'
+}
 
 $allFailures = [System.Collections.Generic.List[object]]::new()
 
