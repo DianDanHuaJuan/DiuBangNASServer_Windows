@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -145,14 +146,39 @@ class DeviceApiHandler {
       return _error(404, 'AVATAR_NOT_FOUND', 'Device avatar was not found');
     }
 
+    final updatedAt = await _avatarStore.readUpdatedAt(deviceId);
+    final etag = updatedAt == null
+        ? null
+        : '"${updatedAt.toUtc().millisecondsSinceEpoch}"';
+    final ifNoneMatch = request.headers['if-none-match']?.trim();
+    if (etag != null && ifNoneMatch != null && ifNoneMatch == etag) {
+      return Response.notModified(
+        headers: <String, String>{
+          'ETag': etag,
+          'Cache-Control': 'private, no-cache, must-revalidate',
+          if (updatedAt != null)
+            'Last-Modified': HttpDate.format(updatedAt.toUtc()),
+          if (updatedAt != null)
+            'X-Avatar-Updated-At': updatedAt.toUtc().toIso8601String(),
+        },
+      );
+    }
+
     final contentType = bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8
         ? 'image/jpeg'
         : 'image/png';
     return Response.ok(
       bytes,
-      headers: {
+      headers: <String, String>{
         'Content-Type': contentType,
-        'Cache-Control': 'private, max-age=300',
+        // Diagnostic/fix: do not allow 5-minute stale avatar caches.
+        // Clients should also pass ?v={avatarUpdatedAt} as a cache buster.
+        'Cache-Control': 'private, no-cache, must-revalidate',
+        if (etag != null) 'ETag': etag,
+        if (updatedAt != null)
+          'Last-Modified': HttpDate.format(updatedAt.toUtc()),
+        if (updatedAt != null)
+          'X-Avatar-Updated-At': updatedAt.toUtc().toIso8601String(),
       },
     );
   }

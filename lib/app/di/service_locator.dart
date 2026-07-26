@@ -184,6 +184,9 @@ class ServiceLocator {
       deviceInfoService: deviceInfoService,
       presenceRepository: realtimePresenceRepository,
       onBroadcastNameChanged: _onBroadcastNameCandidate,
+      onProfileChanged: () {
+        realtimeStatusPublisher?.publishPresenceChanged();
+      },
     );
   }
 

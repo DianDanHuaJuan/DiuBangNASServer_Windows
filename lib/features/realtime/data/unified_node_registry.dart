@@ -376,6 +376,7 @@ class UnifiedNodeRegistry {
         'connectedAt': node.presence.connectedAt!.toUtc().toIso8601String(),
       if (node.presence.lastSeenAt != null)
         'lastSeenAt': node.presence.lastSeenAt!.toUtc().toIso8601String(),
+      ..._avatarUpdatedAtJson(node.identity.deviceId),
     };
   }
 
