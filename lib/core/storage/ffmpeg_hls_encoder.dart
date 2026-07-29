@@ -51,13 +51,14 @@ class FfmpegHlsEncoder {
   static List<String> videoEncoderArgs(FfmpegH264Encoder encoder) {
     switch (encoder) {
       case FfmpegH264Encoder.h264Mf:
+        // MediaFoundation path: keep args conservative for BtbN LGPL builds.
         return const <String>[
           '-c:v',
           'h264_mf',
           '-rate_control',
           'quality',
           '-quality',
-          '70',
+          '50',
           '-scenario',
           'live_streaming',
           '-pix_fmt',
@@ -74,17 +75,21 @@ class FfmpegHlsEncoder {
           '-profile:v',
           'main',
           '-b:v',
-          '2500k',
+          '1500k',
           '-maxrate',
-          '3000k',
+          '1800k',
           '-bufsize',
-          '5000k',
+          '3000k',
           '-pix_fmt',
           'yuv420p',
           '-g',
           '48',
+          '-keyint_min',
+          '48',
           '-sc_threshold',
           '0',
+          '-force_key_frames',
+          'expr:gte(t,n_forced*4)',
         ];
     }
   }

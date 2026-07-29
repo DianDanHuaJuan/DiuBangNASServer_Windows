@@ -8,10 +8,15 @@ import '../../../core/storage/ffmpeg_hls_encoder.dart';
 import '../../../core/storage/ffmpeg_locator.dart';
 
 class VideoHlsSession {
-  const VideoHlsSession({required this.id, required this.playlistPath});
+  const VideoHlsSession({
+    required this.id,
+    required this.playlistPath,
+    required this.seekOffsetMs,
+  });
 
   final String id;
   final String playlistPath;
+  final int seekOffsetMs;
 }
 
 class VideoHlsSessionService {
@@ -30,11 +35,64 @@ class VideoHlsSessionService {
   int _nextSessionId = 0;
 
   static const Duration _startupTimeout = Duration(seconds: 30);
-  static const Duration _assetWaitTimeout = Duration(seconds: 15);
+  static const Duration _assetWaitTimeout = Duration(seconds: 2);
   static const Duration _sessionTtl = Duration(minutes: 20);
-  static const Duration _pollInterval = Duration(milliseconds: 400);
+  static const Duration _pollInterval = Duration(milliseconds: 250);
 
   Future<VideoHlsSession> ensureSession({required String sourcePath}) async {
+    final session = await _obtainSession(sourcePath: sourcePath);
+    try {
+      session.startFuture ??= _startSession(session, seekOffsetMs: 0);
+      await session.startFuture;
+    } catch (_) {
+      session.startFuture = null;
+      rethrow;
+    }
+
+    return VideoHlsSession(
+      id: session.id,
+      playlistPath: session.playlistPath,
+      seekOffsetMs: session.seekOffsetMs,
+    );
+  }
+
+  /// Restart FFmpeg from [seekOffsetMs] (plan A: seek-restart session).
+  Future<VideoHlsSession> seekSession({
+    required String sourcePath,
+    required int seekOffsetMs,
+  }) async {
+    final clampedSeekMs = seekOffsetMs < 0 ? 0 : seekOffsetMs;
+    final session = await _obtainSession(sourcePath: sourcePath);
+
+    // Serialize seeks on the same session.
+    final previous = session.seekFuture;
+    final next = () async {
+      if (previous != null) {
+        try {
+          await previous;
+        } catch (_) {}
+      }
+      await _restartSessionAt(session, seekOffsetMs: clampedSeekMs);
+    }();
+    session.seekFuture = next;
+    try {
+      await next;
+    } finally {
+      if (identical(session.seekFuture, next)) {
+        session.seekFuture = null;
+      }
+    }
+
+    return VideoHlsSession(
+      id: session.id,
+      playlistPath: session.playlistPath,
+      seekOffsetMs: session.seekOffsetMs,
+    );
+  }
+
+  Future<_ManagedVideoHlsSession> _obtainSession({
+    required String sourcePath,
+  }) async {
     await _cleanupExpiredSessions();
 
     final sourceFile = File(sourcePath);
@@ -60,15 +118,25 @@ class VideoHlsSessionService {
     }
 
     session.lastAccessedAt = DateTime.now();
+    return session;
+  }
+
+  Future<void> _restartSessionAt(
+    _ManagedVideoHlsSession session, {
+    required int seekOffsetMs,
+  }) async {
+    await _stopProcess(session);
+    session.startFuture = null;
+    session.exitCode = null;
+    session.lastError = null;
+    session.seekOffsetMs = seekOffsetMs;
+    session.startFuture = _startSession(session, seekOffsetMs: seekOffsetMs);
     try {
-      session.startFuture ??= _startSession(session);
       await session.startFuture;
     } catch (_) {
       session.startFuture = null;
       rethrow;
     }
-
-    return VideoHlsSession(id: session.id, playlistPath: session.playlistPath);
   }
 
   Future<String> readPlaylist(String sessionId) async {
@@ -98,7 +166,7 @@ class VideoHlsSessionService {
     final assetFile = File(p.join(session.outputDir.path, normalizedAssetName));
     final deadline = DateTime.now().add(_assetWaitTimeout);
     while (DateTime.now().isBefore(deadline)) {
-      if (await assetFile.exists()) {
+      if (await _isCompleteAsset(assetFile)) {
         return assetFile;
       }
       if (session.exitCode != null && session.exitCode != 0) {
@@ -107,7 +175,7 @@ class VideoHlsSessionService {
       await Future<void>.delayed(_pollInterval);
     }
 
-    if (await assetFile.exists()) {
+    if (await _isCompleteAsset(assetFile)) {
       return assetFile;
     }
 
@@ -116,7 +184,27 @@ class VideoHlsSessionService {
     );
   }
 
-  Future<void> _startSession(_ManagedVideoHlsSession session) async {
+  Future<bool> _isCompleteAsset(File assetFile) async {
+    if (!await assetFile.exists()) {
+      return false;
+    }
+    final first = await assetFile.stat();
+    if (first.size <= 0) {
+      return false;
+    }
+    // Avoid serving a segment still being written by FFmpeg.
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    if (!await assetFile.exists()) {
+      return false;
+    }
+    final second = await assetFile.stat();
+    return second.size > 0 && second.size == first.size;
+  }
+
+  Future<void> _startSession(
+    _ManagedVideoHlsSession session, {
+    required int seekOffsetMs,
+  }) async {
     final ffmpegPath = await _ffmpegLocator.find();
     if (ffmpegPath == null) {
       throw StateError('ffmpeg.exe is not available for video transcoding.');
@@ -130,22 +218,30 @@ class VideoHlsSessionService {
 
     final playlistFile = File(session.playlistPath);
     final videoEncoder = await FfmpegHlsEncoder.resolve(ffmpegPath);
-    final process = await Process.start(ffmpegPath, <String>[
+    final startNumber = seekOffsetMs <= 0 ? 0 : (seekOffsetMs / 4000).floor();
+    final args = <String>[
       '-y',
       '-hide_banner',
       '-loglevel',
       'error',
+      if (seekOffsetMs > 0) ...<String>[
+        '-ss',
+        (seekOffsetMs / 1000.0).toStringAsFixed(3),
+      ],
       '-i',
       session.sourcePath,
       '-map',
       '0:v:0',
       '-map',
       '0:a:0?',
+      // Preview ladder: keep encode fast enough for seek-restart.
+      '-vf',
+      "scale='min(1280,iw)':-2",
       ...FfmpegHlsEncoder.videoEncoderArgs(videoEncoder),
       '-c:a',
       'aac',
       '-b:a',
-      '128k',
+      '96k',
       '-ac',
       '2',
       '-f',
@@ -157,11 +253,19 @@ class VideoHlsSessionService {
       '-hls_playlist_type',
       'event',
       '-hls_flags',
-      'independent_segments+append_list',
+      'independent_segments+append_list+temp_file',
+      '-start_number',
+      '$startNumber',
       '-hls_segment_filename',
       p.join(session.outputDir.path, 'segment_%05d.ts'),
       playlistFile.path,
-    ], workingDirectory: session.outputDir.path);
+    ];
+
+    final process = await Process.start(
+      ffmpegPath,
+      args,
+      workingDirectory: session.outputDir.path,
+    );
 
     session.process = process;
     session.stderrFuture = process.stderr.transform(utf8.decoder).join();
@@ -169,6 +273,18 @@ class VideoHlsSessionService {
     unawaited(_watchProcessExit(session));
 
     await _waitUntilSessionReady(session);
+  }
+
+  Future<void> _stopProcess(_ManagedVideoHlsSession session) async {
+    final process = session.process;
+    if (process == null) {
+      return;
+    }
+    process.kill();
+    try {
+      await process.exitCode.timeout(const Duration(seconds: 3));
+    } catch (_) {}
+    session.process = null;
   }
 
   Future<void> _watchProcessExit(_ManagedVideoHlsSession session) async {
@@ -229,7 +345,7 @@ class VideoHlsSessionService {
         .toList(growable: false);
 
     for (final session in expiredSessions) {
-      session.process?.kill();
+      await _stopProcess(session);
       _sessionsById.remove(session.id);
       _sessionsBySourceKey.remove(session.sourceKey);
       if (await session.outputDir.exists()) {
@@ -253,10 +369,12 @@ class _ManagedVideoHlsSession {
   final Directory outputDir;
 
   Future<void>? startFuture;
+  Future<void>? seekFuture;
   Future<String>? stderrFuture;
   Process? process;
   int? exitCode;
   String? lastError;
+  int seekOffsetMs = 0;
   DateTime lastAccessedAt = DateTime.now();
 
   String get playlistPath => p.join(outputDir.path, 'playlist.m3u8');

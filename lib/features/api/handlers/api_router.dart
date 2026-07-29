@@ -76,6 +76,7 @@ class ApiRouter {
     router.get('/files/list', _fileListHandler.handle);
     router.get('/preview/meta', _previewHandler.handler);
     router.get('/preview/hls/manifest.m3u8', _previewHlsHandler.manifest);
+    router.post('/preview/hls/seek', _previewHlsHandler.seek);
     router.get('/preview/hls/asset/<sessionId>/<asset|.*>', _previewHlsHandler.asset);
     router.get('/thumbnail', _thumbnailHandler.handler);
     router.post('/thumbnails/batch', _batchThumbnailHandler.handler);

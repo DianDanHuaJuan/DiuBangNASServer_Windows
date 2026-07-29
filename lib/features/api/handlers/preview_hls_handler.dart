@@ -67,6 +67,61 @@ class PreviewHlsHandler {
     }
   }
 
+  Future<Response> seek(Request request) async {
+    final sessionService = _sessionService;
+    if (sessionService == null) {
+      return _errorResponse(
+        501,
+        'TRANSCODE_DISABLED',
+        'Video transcoding is not available on this server.',
+      );
+    }
+
+    final rawPath = request.url.queryParameters['path'];
+    final rawTMs = request.url.queryParameters['tMs'];
+    if (rawPath == null || rawPath.trim().isEmpty) {
+      return _errorResponse(
+        400,
+        'INVALID_PARAMS',
+        'Missing path parameter.',
+      );
+    }
+    final tMs = int.tryParse(rawTMs ?? '');
+    if (tMs == null || tMs < 0) {
+      return _errorResponse(
+        400,
+        'INVALID_PARAMS',
+        'Missing or invalid tMs parameter.',
+      );
+    }
+
+    final resource = await _resolvePlayableResource(rawPath);
+    if (resource == null || resource.isDirectory || resource.sourceRef == null) {
+      return _errorResponse(404, 'PATH_NOT_FOUND', 'Video resource not found.');
+    }
+
+    try {
+      final session = await sessionService.seekSession(
+        sourcePath: resource.sourceRef!,
+        seekOffsetMs: tMs,
+      );
+      return Response.ok(
+        jsonEncode(<String, Object?>{
+          'sessionId': session.id,
+          'seekOffsetMs': session.seekOffsetMs,
+        }),
+        headers: const <String, String>{
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+        },
+      );
+    } on StateError catch (error) {
+      return _errorResponse(503, 'TRANSCODE_UNAVAILABLE', error.message);
+    } catch (error) {
+      return _errorResponse(500, 'INTERNAL_ERROR', error.toString());
+    }
+  }
+
   Future<Response> asset(Request request) async {
     final sessionService = _sessionService;
     if (sessionService == null) {
