@@ -5,7 +5,7 @@ repository: https://github.com/DianDanHuaJuan/DiuBangNASServer
 homepage: https://github.com/DianDanHuaJuan/DiuBangNASServer
 issue_tracker: https://github.com/DianDanHuaJuan/DiuBangNASServer/issues
 publish_to: 'none'
-version: 1.0.2+2
+version: 1.0.3+1
 
 environment:
   sdk: ^3.10.7
