@@ -176,9 +176,11 @@ class PreviewHandler {
         'expiresAt': null,
       };
 
-      // HLS EVENT playlists only expose encoded segments so far; give clients
-      // the real source duration for scrubber UI.
-      if (strategy == 'hls' && resource.sourceRef != null) {
+      // Expose the real source duration for scrubber UI across all video
+      // strategies (progressive / hls). ExoPlayer/libmpv may report
+      // inaccurate durations for moov-at-tail MP4s, so the probed value
+      // serves as the authoritative timeline.
+      if (kind == 'video' && resource.sourceRef != null) {
         final durationMs = await probeDurationMs(resource.sourceRef!);
         if (durationMs != null) {
           response['durationMs'] = durationMs;
@@ -230,11 +232,13 @@ class PreviewHandler {
   }
 
   String? _resolveVideoStrategy(String extension) {
-    if (_hlsVideoPreviewEnabled && _shouldUseHlsTranscode(extension)) {
-      return 'hls';
-    }
+    // progressive 优先：media_kit/libmpv 支持绝大多数视频格式，无需 HLS 转码。
     if (_progressiveVideoPreviewEnabled) {
       return 'progressive';
+    }
+    // HLS 作为后备（仅 progressive 未启用时）。
+    if (_hlsVideoPreviewEnabled && _shouldUseHlsTranscode(extension)) {
+      return 'hls';
     }
     if (_transcodeVideoPreviewEnabled && _hlsVideoPreviewEnabled) {
       return 'hls';
